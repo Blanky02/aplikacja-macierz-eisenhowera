@@ -42,6 +42,21 @@ Darmowy klucz Gemini: https://aistudio.google.com/app/apikey — bez niego aplik
 
 ## ☁️ Wdrożenie na Cloudflare
 
+Frontend buduje wtyczka `@cloudflare/vite-plugin` — przed `wrangler deploy` trzeba wykonać `npm ci` (zależności) oraz `vite build` (generuje katalogi `dist/client` i `dist/macierz_eisenhowera`). Samo `npx wrangler deploy` bez buildu kończy się błędem *„Could not detect a directory containing static files”*.
+
+### Opcja A — Workers Builds (build w panelu Cloudflare)
+
+1. **Workers & Pages → Twój Worker → Settings → Build** (lub podczas pierwszego łączenia repozytorium).
+2. Ustaw:
+   - **Build command:** `npm run cf:deploy` (równa się `npm ci && vite build && wrangler deploy`)
+   - **Deploy command:** `npx wrangler deploy` (wykonuje się już po buildzie)
+   - **Root directory:** `/` (jeśli repo zawiera tylko ten projekt)
+3. Zapisz i kliknij **Deploy**.
+
+> Ważne: komenda budowania MUSI zawierać `npm ci` oraz `vite build` — w czystym środowisku Workers Builds nie ma zainstalowanych zależności ani katalogu `dist/`.
+
+### Opcja B — wdrożenie z własnego komputera
+
 ```bash
 # 1. Zaloguj się do Cloudflare
 npx wrangler login
@@ -58,7 +73,7 @@ npx wrangler d1 execute eisenhower-db --remote --file=./migrations/0001_initial.
 npm run deploy
 ```
 
-Po migracji odpal dowolne żądanie API (np. rejestrację) — konto demo zostanie utworzone automatycznie.
+Po migracji odpal dowolne żądanie API (np. rejestrację) — tabele i konto demo zostaną utworzone automatycznie (init bazy idempotentnie uruchamia się przy pierwszym żądaniu).
 
 ## 📁 Struktura
 

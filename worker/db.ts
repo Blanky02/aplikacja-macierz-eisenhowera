@@ -51,7 +51,20 @@ const DEMO_TASKS: DemoTask[] = [
   { title: "Porządkowanie starych plików na pulpicie", quadrant: "eliminate", due: null, pos: 1 },
 ];
 
-export async function initDb(db: D1Database): Promise<void> {
+let dbReady: Promise<void> | null = null;
+
+// Inicjalizacja raz na izolat Workera (nie przy każdym żądaniu)
+export function initDbOnce(db: D1Database): Promise<void> {
+  if (!dbReady) {
+    dbReady = initDb(db).catch((e) => {
+      dbReady = null; // pozwól na ponowną próbę przy kolejnym żądaniu
+      throw e;
+    });
+  }
+  return dbReady;
+}
+
+async function initDb(db: D1Database): Promise<void> {
   await db.batch(SCHEMA_STATEMENTS.map((sql) => db.prepare(sql)));
 
   const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind("demo@matrix.app").first<{ id: number }>();

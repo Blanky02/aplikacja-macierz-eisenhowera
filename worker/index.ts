@@ -1,5 +1,5 @@
 import { Env, TaskRow } from "./env";
-import { initDb } from "./db";
+import { initDbOnce } from "./db";
 import { hashPassword, verifyPassword, signToken, verifyToken } from "./auth";
 import { suggestQuadrant } from "./ai";
 
@@ -301,7 +301,7 @@ export default {
     const url = new URL(req.url);
     if (url.pathname.startsWith("/api/")) {
       try {
-        await initDb(env.DB);
+        await initDbOnce(env.DB);
         return await handleApi(url.pathname, req, env);
       } catch (e) {
         console.error("API error:", e);
