@@ -1,0 +1,25 @@
+{
+  // Konfiguracja Cloudflare Workers (lokalnie działa przez Wrangler bez konta).
+  "name": "macierz-eisenhowera",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-08-01",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+    // Wszystkie żądania najpierw trafiają do Workera (routuje /api/*, resztę oddaje statykom).
+    "run_worker_first": true,
+    // SPA — nieznane ścieżki zwracają index.html (React Router).
+    "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "eisenhower-db",
+      "database_id": "eisenhower-local-db",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "GEMINI_MODEL": "gemini-2.5-flash"
+  }
+}

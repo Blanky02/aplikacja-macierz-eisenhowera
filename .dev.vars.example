@@ -1,0 +1,4 @@
+# Skopiuj ten plik jako .dev.vars i uzupełnij wartości.
+# Darmowy klucz Gemini API: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=twój-klucz-gemini
+JWT_SECRET=losowy-ciag-znakow
