@@ -1,0 +1,7 @@
+# Copy to backend/.dev.vars for local Salt Edge sandbox testing.
+# Never commit the real values.
+SALT_EDGE_APP_ID=""
+SALT_EDGE_SECRET=""
+AUTH_JWT_SECRET="local-only-change-me"
+# Paste the Salt Edge callback public key only when testing signed callbacks.
+SALTEDGE_CALLBACK_PUBLIC_KEY=""

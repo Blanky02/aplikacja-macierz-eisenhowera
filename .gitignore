@@ -8,6 +8,12 @@ build/
 *.iml
 local.properties
 .externalNativeBuild/
+
+# Cloudflare local state and secrets
+.wrangler/
+node_modules/
+backend/.dev.vars
+
 .cxx/
 
 # OS
