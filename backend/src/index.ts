@@ -1,6 +1,7 @@
 import { cors } from 'hono/cors';
 import { Hono } from 'hono';
 import { authenticate } from './auth';
+import { authRoutes } from './authRoutes';
 import {
   ensureUser,
   getConnectionForUser,
@@ -25,6 +26,7 @@ interface Variables {
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 app.use('/api/*', cors({ origin: '*' }));
+app.route('/api/auth', authRoutes);
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'fokus-bank-api' }));
 

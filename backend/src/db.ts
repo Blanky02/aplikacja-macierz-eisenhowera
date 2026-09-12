@@ -22,6 +22,14 @@ export async function saveSaltEdgeCustomer(db: D1Database, userId: string, custo
   ).bind(userId, customerId).run();
 }
 
+export async function getUserByEmail(db: D1Database, email: string): Promise<AuthUser | null> {
+  return db.prepare('SELECT id, email FROM users WHERE email = ?').bind(email).first<AuthUser>();
+}
+
+export async function getUserById(db: D1Database, userId: string): Promise<AuthUser | null> {
+  return db.prepare('SELECT id, email FROM users WHERE id = ?').bind(userId).first<AuthUser>();
+}
+
 export async function upsertConnection(db: D1Database, userId: string, connection: SaltEdgeConnection): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare(

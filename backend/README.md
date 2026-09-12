@@ -5,8 +5,9 @@ Cloudflare Worker responsible for the optional bank connection. The Android app 
 ## What is included
 
 - Salt Edge Partners API adapter
-- authenticated API contract using an external HS256 JWT issuer
-- development-only `X-Fokus-Dev-User` header
+- Google ID token login and e-mail magic-link login
+- HS256 access tokens issued by the Worker
+- authenticated API contract and development-only `X-Fokus-Dev-User` header
 - D1 schema for users, consents, connections, accounts, transactions and sync runs
 - normalized transaction model with transparent Eisenhower quadrant suggestions
 - manual sync endpoint and daily scheduled sync
@@ -76,4 +77,4 @@ curl http://localhost:8787/api/bank/providers?country=PL \
 - Raw provider payloads are not stored in R2 or returned to the mobile app.
 - A transaction's suggested quadrant is not treated as a user decision; confirmation is stored separately in D1 in the next mobile-sync step.
 - Callback signature verification is implemented for the RSA public key from Salt Edge onboarding. Outgoing request signing remains a production-onboarding task because Salt Edge enables it for live clients.
-- Google/e-mail token issuance must be configured before real users are enabled.
+- Configure the Google OAuth client id, a verified e-mail sender such as Resend, the Android deep-link allowlist and the production callback URL before real users are enabled.

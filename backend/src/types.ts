@@ -5,6 +5,11 @@ export type Env = {
   SALT_EDGE_SECRET: string;
   AUTH_JWT_SECRET: string;
   SALTEDGE_CALLBACK_PUBLIC_KEY?: string;
+  GOOGLE_WEB_CLIENT_ID?: string;
+  PUBLIC_BASE_URL?: string;
+  EMAIL_APP_REDIRECT_URI?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   SALT_EDGE_BASE_URL?: string;
   ENVIRONMENT?: string;
   ALLOWED_ORIGINS?: string;

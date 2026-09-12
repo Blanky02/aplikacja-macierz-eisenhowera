@@ -93,6 +93,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.fokus.app.MainViewModel
+import pl.fokus.app.bank.BankSyncViewModel
 import pl.fokus.app.data.AllocationEntity
 import pl.fokus.app.data.BudgetSnapshot
 import pl.fokus.app.data.FinanceQuadrant
@@ -117,12 +118,12 @@ private enum class AppTab(val label: String) {
 }
 
 private enum class BottomSheet {
-    NONE, QUICK_ADD, INCOME, EXPENSE, PLAN, TRANSFER, SETTINGS, SETUP,
+    NONE, QUICK_ADD, INCOME, EXPENSE, PLAN, TRANSFER, SETTINGS, BANK, SETUP,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FokusApp(viewModel: MainViewModel) {
+fun FokusApp(viewModel: MainViewModel, bankViewModel: BankSyncViewModel) {
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.BUDGET) }
     var sheet by rememberSaveable { mutableStateOf(BottomSheet.NONE) }
     var showQuickAdd by rememberSaveable { mutableStateOf(false) }
@@ -273,11 +274,17 @@ fun FokusApp(viewModel: MainViewModel) {
         BottomSheet.SETTINGS -> SettingsSheet(
             settings = settings,
             hasFinancialData = snapshot.incomes.isNotEmpty() || snapshot.expenses.isNotEmpty() || snapshot.allocations.isNotEmpty(),
+            onBank = { sheet = BottomSheet.BANK },
             onDismiss = { sheet = BottomSheet.NONE },
             onSave = { currency, startDay ->
                 viewModel.updateSettings(currency, startDay)
                 sheet = BottomSheet.NONE
             },
+        )
+
+        BottomSheet.BANK -> BankSyncSheet(
+            viewModel = bankViewModel,
+            onDismiss = { sheet = BottomSheet.NONE },
         )
 
         BottomSheet.SETUP -> SetupSheet(
@@ -1132,6 +1139,7 @@ private fun TransferSheet(
 private fun SettingsSheet(
     settings: FinanceSettings,
     hasFinancialData: Boolean,
+    onBank: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (String, Int) -> Unit,
 ) {
@@ -1140,7 +1148,7 @@ private fun SettingsSheet(
     var startDay by remember { mutableStateOf(settings.budgetStartDay.toString()) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
-            SheetHeader("Ustawienia budżetu", "Dane finansowe pozostają na tym urządzeniu.", onDismiss)
+            SheetHeader("Ustawienia budżetu", "Budżet działa offline; synchronizacja bankowa jest opcjonalna.", onDismiss)
             if (hasFinancialData) {
                 OutlinedTextField(
                     value = currency,
@@ -1163,6 +1171,20 @@ private fun SettingsSheet(
                 supportingText = { Text("Zakres 1–28, żeby każdy miesiąc był jednoznaczny.") },
                 singleLine = true,
             )
+            Spacer(Modifier.height(15.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(14.dp))
+            Text("Synchronizacja bankowa", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Opcjonalnie połącz rachunki przez Salt Edge. Fokus nie otrzymuje haseł bankowych.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = onBank, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("Otwórz synchronizację bankową")
+            }
             Spacer(Modifier.height(15.dp))
             Button(
                 onClick = { onSave(currency, startDay.toIntOrNull()?.coerceIn(1, 28) ?: 1) },

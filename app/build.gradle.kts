@@ -5,6 +5,15 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+fun buildConfigLiteral(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+val fokusBackendUrl = (project.findProperty("fokusBackendUrl") as String?)
+    ?: System.getenv("FOKUS_BACKEND_URL")
+    ?: ""
+val fokusGoogleWebClientId = (project.findProperty("fokusGoogleWebClientId") as String?)
+    ?: System.getenv("FOKUS_GOOGLE_WEB_CLIENT_ID")
+    ?: ""
+
 android {
     namespace = "pl.fokus.app"
     compileSdk = 35
@@ -15,6 +24,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("String", "FOKUS_BACKEND_URL", buildConfigLiteral(fokusBackendUrl))
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", buildConfigLiteral(fokusGoogleWebClientId))
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -59,6 +71,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")

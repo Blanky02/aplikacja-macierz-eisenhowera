@@ -29,7 +29,7 @@ Androidowa aplikacja do planowania i kontrolowania pieniędzy za pomocą macierz
 
 Aplikacja pozostaje offline-first: podstawowe dane budżetu są przechowywane lokalnie w Room. Opcjonalna synchronizacja bankowa korzysta z backendu Cloudflare Workers + D1 + R2 i dostawcy Salt Edge; Fokus nie przechowuje haseł bankowych i nie wykonuje przelewów ani płatności. Sugestie ćwiartki dla transakcji bankowej zawsze wymagają ręcznego zatwierdzenia.
 
-Pierwszy etap backendu znajduje się w [`backend/`](backend/) i obejmuje adapter Salt Edge, migrację D1, ręczną/dzienną synchronizację oraz weryfikację podpisów callbacków. Połączenie backendu z ekranem Androida i przepływ logowania Google/e-mail wymagają jeszcze konfiguracji środowiska oraz sekretów poza repozytorium. Szczegóły decyzji dostawcy są w [`docs/open-banking-provider-comparison.md`](docs/open-banking-provider-comparison.md).
+Backend i ekran synchronizacji bankowej znajdują się odpowiednio w [`backend/`](backend/) oraz aplikacji Android. Obejmują adapter Salt Edge, migrację D1, ręczną/dzienną synchronizację, logowanie Google/e-mail i weryfikację podpisów callbacków. Do uruchomienia prawdziwych połączeń potrzebna jest jeszcze konfiguracja środowiska oraz sekretów poza repozytorium. Szczegóły decyzji dostawcy są w [`docs/open-banking-provider-comparison.md`](docs/open-banking-provider-comparison.md).
 
 ## Uruchomienie
 
@@ -63,3 +63,13 @@ npm run dev
 ```
 
 Prawdziwe wartości Salt Edge, klucz JWT oraz klucz publiczny callbacków należy ustawić jako sekrety Cloudflare lub lokalnie w `backend/.dev.vars` utworzonym na podstawie `backend/.dev.vars.example`. Nie wpisuj ich do Git. Workflow `.github/workflows/backend.yml` wykonuje typecheck i testy Workera.
+
+Adres backendu i identyfikator klienta Google przekazuje się do buildu Androida bez zapisywania ich w kodzie:
+
+```bash
+gradle :app:assembleDebug \
+  -PfokusBackendUrl=https://api.example.com \
+  -PfokusGoogleWebClientId=YOUR_GOOGLE_WEB_CLIENT_ID
+```
+
+Bez tych parametrów podstawowy budżet nadal działa offline, ale sekcja synchronizacji bankowej pokaże informację o brakującej konfiguracji.

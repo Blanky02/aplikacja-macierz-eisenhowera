@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Only used for optional exchange-rate refresh; all financial records stay local. -->
+    <!-- Used for exchange rates and the optional bank backend. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -16,6 +16,15 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="fokus"
+                    android:host="auth"
+                    android:path="/email" />
             </intent-filter>
         </activity>
 
