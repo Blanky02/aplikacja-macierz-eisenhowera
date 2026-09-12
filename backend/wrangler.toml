@@ -1,0 +1,20 @@
+name = "fokus-bank-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-12"
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "development"
+SALT_EDGE_BASE_URL = "https://www.saltedge.com/api/partners/v1"
+ALLOWED_ORIGINS = "*"
+EMAIL_APP_REDIRECT_URI = "fokus://auth/email"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fokus-bank-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "fokus-backups"

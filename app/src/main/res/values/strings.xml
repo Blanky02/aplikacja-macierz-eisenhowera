@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Fokus Budżet</string>
+    <string name="widget_active_count">Budżet</string>
+    <string name="widget_quadrant_count">%1$d</string>
+    <string name="widget_q0">Ważne i pilne</string>
+    <string name="widget_q1">Ważne i niepilne</string>
+    <string name="widget_q2">Mniej ważne i pilne</string>
+    <string name="widget_q3">Mniej ważne i niepilne</string>
+    <string name="widget_open">Otwórz budżet</string>
+</resources>
