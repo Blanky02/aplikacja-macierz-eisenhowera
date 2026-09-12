@@ -52,10 +52,28 @@ jobs:
           gradle-version: '8.9'
 
       - name: Run unit tests
-        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+        id: unit_tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest --no-daemon --stacktrace --console=plain 2>&1 | tee unit-tests.log
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fokus-unit-test-log-${{ github.run_number }}
+          path: unit-tests.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail if unit tests failed
+        if: steps.unit_tests.outcome == 'failure'
+        run: exit 1
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        run: gradle :app:assembleDebug --no-daemon --stacktrace --console=plain
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
