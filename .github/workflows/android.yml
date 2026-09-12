@@ -72,7 +72,7 @@ jobs:
         if: steps.unit_tests.outcome == 'failure'
         shell: bash
         run: |
-          summary=$(grep -iE 'FAILURE|What went wrong|Execution failed|error:|Caused by:|> Task' unit-tests.log | tail -80 | tr '\n' ' ' | tr '\r' ' ' | sed 's/%/%25/g; s/|/%7C/g')
+          summary=$(grep -iE 'FAILURE|What went wrong|Execution failed|error:|e: |\.kt:[0-9]+|Caused by:|> Task' unit-tests.log | tail -120 | tr '\n' ' ' | tr '\r' ' ' | sed 's/%/%25/g; s/|/%7C/g')
           echo "::error file=unit-tests.log,line=1::${summary}"
 
       - name: Fail if unit tests failed
