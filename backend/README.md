@@ -75,6 +75,6 @@ curl http://localhost:8787/api/bank/providers?country=PL \
 - The mobile app talks only to this Worker.
 - Salt Edge credentials are Worker secrets.
 - Raw provider payloads are not stored in R2 or returned to the mobile app.
-- A transaction's suggested quadrant is not treated as a user decision; confirmation is stored separately in D1 in the next mobile-sync step.
+- A transaction's suggested quadrant is not treated as a user decision; confirmation is stored separately in D1 through the quadrant confirmation endpoint.
 - Callback signature verification is implemented for the RSA public key from Salt Edge onboarding. Outgoing request signing remains a production-onboarding task because Salt Edge enables it for live clients.
 - Configure the Google OAuth client id, a verified e-mail sender such as Resend, the Android deep-link allowlist and the production callback URL before real users are enabled.
