@@ -40,3 +40,9 @@ gradle :app:assembleDebug
 ```
 
 W tym środowisku nie ma zainstalowanego JDK ani Android SDK, dlatego lokalny build zostanie wykonany po otwarciu projektu w Android Studio lub w CI.
+
+## Automatyczne budowanie APK
+
+Workflow `.github/workflows/android.yml` uruchamia się przy każdym pushu na `main` lub gałąź `arena/**`, przy Pull Requeście do `main` oraz ręcznie. Wykonuje testy, buduje debug APK i publikuje go jako artefakt GitHub Actions.
+
+Po zakończeniu workflow wejdź w GitHubie w `Actions → Android APK → wybrane uruchomienie → Artifacts` i pobierz plik `fokus-debug-apk-*`.
