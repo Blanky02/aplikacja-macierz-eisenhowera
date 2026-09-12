@@ -1131,6 +1131,7 @@ private fun TransferSheet(
 @Composable
 private fun SettingsSheet(
     settings: FinanceSettings,
+    hasFinancialData: Boolean,
     onDismiss: () -> Unit,
     onSave: (String, Int) -> Unit,
 ) {
@@ -1140,7 +1141,19 @@ private fun SettingsSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
             SheetHeader("Ustawienia budżetu", "Dane finansowe pozostają na tym urządzeniu.", onDismiss)
-            ChoiceButton("Waluta bazowa", currency, supportedCurrencies, modifier = Modifier.fillMaxWidth()) { currency = it }
+            if (hasFinancialData) {
+                OutlinedTextField(
+                    value = currency,
+                    onValueChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Waluta bazowa") },
+                    supportingText = { Text("Nie zmieniamy jej po zapisaniu danych, żeby nie przeliczyć historii błędnie.") },
+                    readOnly = true,
+                    singleLine = true,
+                )
+            } else {
+                ChoiceButton("Waluta bazowa", currency, supportedCurrencies, modifier = Modifier.fillMaxWidth()) { currency = it }
+            }
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = startDay,
