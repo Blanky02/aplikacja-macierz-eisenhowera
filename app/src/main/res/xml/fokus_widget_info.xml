@@ -4,7 +4,7 @@
     android:initialLayout="@layout/widget_fokus"
     android:minHeight="180dp"
     android:minWidth="180dp"
-    android:previewImage="@drawable/ic_notification"
+    android:previewImage="@drawable/ic_launcher"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

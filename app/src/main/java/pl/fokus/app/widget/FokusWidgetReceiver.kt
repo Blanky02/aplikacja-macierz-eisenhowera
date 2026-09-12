@@ -16,8 +16,6 @@ class FokusWidgetReceiver : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            WidgetUpdater.update(context)
-        }
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) WidgetUpdater.update(context)
     }
 }

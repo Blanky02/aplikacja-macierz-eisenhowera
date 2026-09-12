@@ -6,22 +6,22 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [TaskEntity::class],
+    entities = [IncomeEntity::class, ExpenseEntity::class, AllocationEntity::class, TransferEntity::class],
     version = 1,
     exportSchema = false,
 )
-abstract class FocusDatabase : RoomDatabase() {
-    abstract fun taskDao(): TaskDao
+abstract class FinanceDatabase : RoomDatabase() {
+    abstract fun financeDao(): FinanceDao
 
     companion object {
         @Volatile
-        private var instance: FocusDatabase? = null
+        private var instance: FinanceDatabase? = null
 
-        fun get(context: Context): FocusDatabase = instance ?: synchronized(this) {
+        fun get(context: Context): FinanceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
-                FocusDatabase::class.java,
-                "fokus.db",
+                FinanceDatabase::class.java,
+                "fokus-finanse.db",
             ).fallbackToDestructiveMigration().build().also { instance = it }
         }
     }

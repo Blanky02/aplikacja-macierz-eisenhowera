@@ -11,7 +11,7 @@
         android:id="@+id/widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Fokus"
+        android:text="Fokus Budżet"
         android:textColor="#24201F"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -21,7 +21,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="0 aktywnych zadań"
+        android:text="Pozostało 0,00 zł"
         android:textColor="#6D625F"
         android:textSize="12sp" />
 
@@ -30,41 +30,41 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="0 zadań"
+        android:text="Ważne i pilne"
         android:textColor="#9B3B37"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <TextView
         android:id="@+id/widget_q1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="0 zadań"
+        android:text="Ważne i niepilne"
         android:textColor="#7C5A16"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <TextView
         android:id="@+id/widget_q2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="0 zadań"
+        android:text="Mniej ważne i pilne"
         android:textColor="#27657A"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <TextView
         android:id="@+id/widget_q3"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="0 zadań"
+        android:text="Mniej ważne i niepilne"
         android:textColor="#53636A"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <Button
         android:id="@+id/widget_open"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Otwórz Fokus" />
+        android:text="Otwórz budżet" />
 </LinearLayout>

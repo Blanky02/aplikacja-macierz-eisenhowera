@@ -3,100 +3,103 @@ package pl.fokus.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import pl.fokus.app.data.TaskEntity
-import pl.fokus.app.data.TaskRepository
+import pl.fokus.app.data.BudgetPeriod
+import pl.fokus.app.data.BudgetSnapshot
+import pl.fokus.app.data.FinanceQuadrant
+import pl.fokus.app.data.FinanceRepository
+import pl.fokus.app.data.FinanceSettings
+import pl.fokus.app.data.currentBudgetPeriod
+import pl.fokus.app.data.suggestedPlan as buildSuggestedPlan
 
-class MainViewModel(
-    private val repository: TaskRepository,
-) : ViewModel() {
-    enum class Filter { ALL, TODAY, OVERDUE, NO_DATE }
+class MainViewModel(private val repository: FinanceRepository) : ViewModel() {
+    val settings: StateFlow<FinanceSettings> = repository.settings
 
-    private val query = MutableStateFlow("")
-    private val filter = MutableStateFlow(Filter.ALL)
+    val period: StateFlow<BudgetPeriod> = settings
+        .map { currentBudgetPeriod(it.budgetStartDay) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            currentBudgetPeriod(settings.value.budgetStartDay),
+        )
 
-    val searchQuery: StateFlow<String> = query
-    val selectedFilter: StateFlow<Filter> = filter
+    private val currentIncomes = period.flatMapLatest(repository::incomes)
+    private val currentExpenses = period.flatMapLatest(repository::expenses)
+    private val currentAllocations = period.flatMapLatest(repository::allocations)
 
-    val activeTasks: StateFlow<List<TaskEntity>> = combine(
-        repository.active,
-        query,
-        filter,
-    ) { tasks, text, selectedFilter ->
-        val normalized = text.trim().lowercase()
-        tasks.filter { task ->
-            val matchesText = normalized.isBlank() || listOf(
-                task.title,
-                task.notes,
-                task.project,
-                task.tags,
-            ).joinToString(" ").lowercase().contains(normalized)
-            val matchesFilter = when (selectedFilter) {
-                Filter.ALL -> true
-                Filter.TODAY -> task.dueAt?.let(::isToday) == true
-                Filter.OVERDUE -> task.dueAt?.let { it < System.currentTimeMillis() } == true
-                Filter.NO_DATE -> task.dueAt == null
-            }
-            matchesText && matchesFilter
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val archivedTasks: StateFlow<List<TaskEntity>> = repository.archived.stateIn(
+    val historyExpenses = repository.historyExpenses.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
 
-    fun setSearchQuery(value: String) {
-        query.value = value
+    val snapshot: StateFlow<BudgetSnapshot> = combine(
+        period,
+        settings,
+        currentIncomes,
+        currentExpenses,
+        currentAllocations,
+    ) { currentPeriod, currentSettings, incomes, expenses, allocations ->
+        BudgetSnapshot(
+            period = currentPeriod,
+            baseCurrency = currentSettings.baseCurrency,
+            incomes = incomes,
+            expenses = expenses,
+            allocations = allocations,
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        BudgetSnapshot(
+            period = currentBudgetPeriod(settings.value.budgetStartDay),
+            baseCurrency = settings.value.baseCurrency,
+            incomes = emptyList(),
+            expenses = emptyList(),
+            allocations = emptyList(),
+        ),
+    )
+
+    fun addIncome(source: String, amountMinor: Long, currency: String, receivedAt: Long) = viewModelScope.launch {
+        repository.addIncome(source, amountMinor, currency, receivedAt)
     }
 
-    fun setFilter(value: Filter) {
-        filter.value = value
+    fun addExpense(name: String, amountMinor: Long, currency: String, quadrant: FinanceQuadrant, occurredAt: Long) = viewModelScope.launch {
+        repository.addExpense(name, amountMinor, currency, quadrant, occurredAt)
     }
 
-    fun save(task: TaskEntity) = viewModelScope.launch {
-        repository.save(task)
+    fun deleteIncome(id: Long) = viewModelScope.launch { repository.deleteIncome(id) }
+    fun deleteExpense(id: Long) = viewModelScope.launch { repository.deleteExpense(id) }
+
+    fun savePlan(plan: Map<FinanceQuadrant, Long>) = viewModelScope.launch {
+        repository.savePlan(currentBudgetPeriod(settings.value.budgetStartDay), plan)
+        repository.markSetupCompleted()
     }
 
-    fun move(task: TaskEntity, quadrant: Int?) = viewModelScope.launch {
-        repository.move(task, quadrant)
+    fun transfer(from: FinanceQuadrant, to: FinanceQuadrant, amountMinor: Long) = viewModelScope.launch {
+        repository.transfer(period.value, from, to, amountMinor)
     }
 
-    fun archive(task: TaskEntity) = viewModelScope.launch {
-        repository.archive(task)
+    fun suggestedPlan(): Map<FinanceQuadrant, Long> =
+        buildSuggestedPlan(snapshot.value.totalIncomeMinor, historyExpenses.value)
+
+    fun updateSettings(baseCurrency: String, budgetStartDay: Int) {
+        repository.updateSettings(baseCurrency, budgetStartDay)
     }
 
-    fun toggleComplete(task: TaskEntity) = viewModelScope.launch {
-        repository.toggleComplete(task)
+    fun completeSetup() {
+        repository.markSetupCompleted()
     }
 
-    fun restore(task: TaskEntity) = viewModelScope.launch {
-        repository.restore(task)
-    }
-
-    fun delete(task: TaskEntity) = viewModelScope.launch {
-        repository.delete(task)
-    }
-
-    private fun isToday(timestamp: Long): Boolean {
-        val today = java.util.Calendar.getInstance()
-        val date = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-        return today.get(java.util.Calendar.YEAR) == date.get(java.util.Calendar.YEAR) &&
-            today.get(java.util.Calendar.DAY_OF_YEAR) == date.get(java.util.Calendar.DAY_OF_YEAR)
-    }
-
-    class Factory(private val repository: TaskRepository) : ViewModelProvider.Factory {
+    class Factory(private val repository: FinanceRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-                return MainViewModel(repository) as T
-            }
+            if (modelClass.isAssignableFrom(MainViewModel::class.java)) return MainViewModel(repository) as T
             throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
         }
     }

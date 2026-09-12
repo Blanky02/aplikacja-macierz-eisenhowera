@@ -1,14 +1,10 @@
 <resources>
-    <string name="app_name">Fokus</string>
-    <string name="notification_channel_name">Przypomnienia zadań</string>
-    <string name="notification_channel_description">Lokalne przypomnienia o zadaniach w Fokusie</string>
-    <string name="notification_title">Czas na zadanie</string>
-    <string name="notification_fallback">Masz zaplanowane zadanie</string>
-    <string name="widget_active_count">%1$d aktywnych zadań</string>
-    <string name="widget_quadrant_count">%1$d zadań</string>
-    <string name="widget_q0">Zrób teraz</string>
-    <string name="widget_q1">Zaplanuj</string>
-    <string name="widget_q2">Ogranicz</string>
-    <string name="widget_q3">Usuń</string>
-    <string name="widget_open">Otwórz Fokus</string>
+    <string name="app_name">Fokus Budżet</string>
+    <string name="widget_active_count">Budżet</string>
+    <string name="widget_quadrant_count">%1$d</string>
+    <string name="widget_q0">Ważne i pilne</string>
+    <string name="widget_q1">Ważne i niepilne</string>
+    <string name="widget_q2">Mniej ważne i pilne</string>
+    <string name="widget_q3">Mniej ważne i niepilne</string>
+    <string name="widget_open">Otwórz budżet</string>
 </resources>

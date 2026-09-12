@@ -1,21 +1,36 @@
-# Fokus
+# Fokus Budżet
 
-Androidowa aplikacja macierzy Eisenhowera — szybkie planowanie zadań według ważności i pilności.
+Androidowa aplikacja do planowania i kontrolowania pieniędzy za pomocą macierzy Eisenhowera. Użytkownik dodaje wpływy, rozdziela je między cztery obszary i zapisuje wydatki. Każdy wydatek dostaje propozycję ćwiartki, ale ostateczna decyzja zawsze należy do użytkownika.
 
-## Założenia pierwszej wersji
+## Cztery obszary
+
+- **Ważne i pilne** — rachunki, raty, obowiązki i sytuacje wymagające szybkiej reakcji.
+- **Ważne i niepilne** — oszczędności, cele, inwestycje i edukacja.
+- **Mniej ważne i pilne** — bieżące potrzeby i szybkie sprawy.
+- **Mniej ważne i niepilne** — przyjemności oraz zachcianki.
+
+## Zakres pierwszej wersji
 
 - Kotlin + Jetpack Compose, Android 12+
-- lokalna baza Room i działanie offline-first
-- macierz 2×2 z automatyczną sugestią ćwiartki na podstawie terminu oraz ważności
-- zadania z opisem, notatką, linkiem, projektem, tagami, terminem, cyklem i przypomnieniem
-- lokalne przypomnienia Androida, archiwum wykonanych zadań i widget
-- polski interfejs Material 3, jasny/ciemny motyw
+- lokalna baza Room i brak logowania
+- wpływy z wielu źródeł
+- budżet z własnym dniem rozpoczęcia okresu
+- wiele walut z wybraną walutą bazową
+- odświeżanie kursu online i lokalny fallback na ostatni zapisany kurs
+- proste wydatki: nazwa, kwota, waluta, data i ćwiartka
+- transparentna propozycja ćwiartki dla nowego wydatku
+- planowanie kwot dla czterech ćwiartek
+- propozycja podziału na podstawie historii, zawsze wymagająca ręcznego zatwierdzenia
+- ręczne przenoszenie środków między ćwiartkami z ostrzeżeniem
+- widoki Budżet, Wydatki, Historia oraz widget Androida
+- kreator pierwszego budżetu bez narzucania procentów
+- jasny i ciemny motyw Material 3
 
-Synchronizacja między urządzeniami, logowanie Google i pliki będą osobnym etapem. Planowana warstwa chmurowa może później korzystać z Cloudflare Workers, D1 i R2.
+Dane finansowe nie są wysyłane do konta ani synchronizowane. Internet jest używany wyłącznie opcjonalnie do odświeżania kursu walut. Synchronizacja między urządzeniami i eksport/backup mogą zostać dodane później.
 
 ## Uruchomienie
 
-Otwórz katalog w Android Studio Ladybug lub nowszym, pozwól Gradle pobrać zależności i uruchom konfigurację `app` na emulatorze/urządzeniu z Androidem 12+.
+Otwórz katalog w Android Studio Ladybug lub nowszym, pozwól Gradle pobrać zależności i uruchom konfigurację `app` na emulatorze lub urządzeniu z Androidem 12+.
 
 Po skonfigurowaniu Gradle można uruchomić testy i build:
 

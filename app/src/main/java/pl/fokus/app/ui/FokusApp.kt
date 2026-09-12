@@ -1,11 +1,9 @@
 package pl.fokus.app.ui
 
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,47 +22,41 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Archive
-import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Restore
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Today
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,33 +74,36 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.fokus.app.MainViewModel
-import pl.fokus.app.data.Quadrant
-import pl.fokus.app.data.Recurrence
-import pl.fokus.app.data.TaskEntity
-import pl.fokus.app.data.isUrgent
-import pl.fokus.app.data.quadrantFor
+import pl.fokus.app.data.AllocationEntity
+import pl.fokus.app.data.BudgetSnapshot
+import pl.fokus.app.data.FinanceQuadrant
+import pl.fokus.app.data.FinanceSettings
+import pl.fokus.app.data.IncomeEntity
+import pl.fokus.app.data.ExpenseEntity
+import pl.fokus.app.data.formatMoney
+import pl.fokus.app.data.parseMinorUnits
+import pl.fokus.app.data.suggestQuadrant
+import pl.fokus.app.data.supportedCurrencies
+import java.math.BigDecimal
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -116,40 +111,59 @@ import java.util.Date
 import java.util.Locale
 
 private enum class AppTab(val label: String) {
-    MATRIX("Macierz"),
-    TODAY("Dziś"),
-    ARCHIVE("Archiwum"),
+    BUDGET("Budżet"),
+    EXPENSES("Wydatki"),
+    HISTORY("Historia"),
+}
+
+private enum class BottomSheet {
+    NONE, QUICK_ADD, INCOME, EXPENSE, PLAN, TRANSFER, SETTINGS, SETUP,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FokusApp(viewModel: MainViewModel) {
-    var selectedTab by rememberSaveable { mutableStateOf(AppTab.MATRIX) }
-    var searchOpen by rememberSaveable { mutableStateOf(false) }
-    var filterOpen by rememberSaveable { mutableStateOf(false) }
-    var editorOpen by rememberSaveable { mutableStateOf(false) }
-    var editingTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var selectedTab by rememberSaveable { mutableStateOf(AppTab.BUDGET) }
+    var sheet by rememberSaveable { mutableStateOf(BottomSheet.NONE) }
+    var showQuickAdd by rememberSaveable { mutableStateOf(false) }
+    val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
 
-    val tasks by viewModel.activeTasks.collectAsStateWithLifecycle()
-    val archivedTasks by viewModel.archivedTasks.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+    LaunchedEffect(settings.setupCompleted) {
+        if (!settings.setupCompleted) sheet = BottomSheet.SETUP
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
-            FokusTopBar(
-                tab = selectedTab,
-                searchOpen = searchOpen,
-                query = searchQuery,
-                activeFilter = selectedFilter,
-                onSearchClick = { searchOpen = !searchOpen },
-                onQueryChange = viewModel::setSearchQuery,
-                onFilterClick = { filterOpen = true },
-                onCloseSearch = {
-                    searchOpen = false
-                    viewModel.setSearchQuery("")
+            CenterAlignedTopAppBar(
+                title = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            when (selectedTab) {
+                                AppTab.BUDGET -> "Fokus Budżet"
+                                AppTab.EXPENSES -> "Wydatki"
+                                AppTab.HISTORY -> "Historia"
+                            },
+                            fontWeight = FontWeight.Bold,
+                        )
+                        if (selectedTab == AppTab.BUDGET) {
+                            Text(
+                                periodLabel(snapshot),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 },
+                actions = {
+                    IconButton(onClick = { sheet = BottomSheet.SETTINGS }) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Ustawienia")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
         bottomBar = {
@@ -160,10 +174,10 @@ fun FokusApp(viewModel: MainViewModel) {
                         onClick = { selectedTab = tab },
                         icon = {
                             Icon(
-                                imageVector = when (tab) {
-                                    AppTab.MATRIX -> Icons.Outlined.GridView
-                                    AppTab.TODAY -> Icons.Outlined.Today
-                                    AppTab.ARCHIVE -> Icons.Outlined.Archive
+                                when (tab) {
+                                    AppTab.BUDGET -> Icons.Outlined.Home
+                                    AppTab.EXPENSES -> Icons.Outlined.ReceiptLong
+                                    AppTab.HISTORY -> Icons.Outlined.History
                                 },
                                 contentDescription = tab.label,
                             )
@@ -174,653 +188,486 @@ fun FokusApp(viewModel: MainViewModel) {
             }
         },
         floatingActionButton = {
-            if (selectedTab != AppTab.ARCHIVE) {
-                FloatingActionButton(
-                    onClick = {
-                        editingTask = null
-                        editorOpen = true
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Dodaj zadanie")
-                }
+            FloatingActionButton(
+                onClick = { sheet = BottomSheet.QUICK_ADD },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = "Dodaj wpływ lub wydatek")
             }
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
             when (selectedTab) {
-                AppTab.MATRIX -> MatrixScreen(
-                    tasks = tasks,
-                    onOpenTask = { editingTask = it; editorOpen = true },
-                    onComplete = viewModel::toggleComplete,
-                    onArchive = viewModel::archive,
-                    onDelete = viewModel::delete,
-                    onMove = viewModel::move,
+                AppTab.BUDGET -> BudgetScreen(
+                    snapshot = snapshot,
+                    settings = settings,
+                    onPlan = { sheet = BottomSheet.PLAN },
+                    onIncome = { sheet = BottomSheet.INCOME },
+                    onExpense = { sheet = BottomSheet.EXPENSE },
+                    onTransfer = { sheet = BottomSheet.TRANSFER },
+                    onSetup = { sheet = BottomSheet.SETUP },
                 )
 
-                AppTab.TODAY -> TodayScreen(
-                    tasks = tasks,
-                    onOpenTask = { editingTask = it; editorOpen = true },
-                    onComplete = viewModel::toggleComplete,
-                    onArchive = viewModel::archive,
-                    onDelete = viewModel::delete,
-                    onMove = viewModel::move,
+                AppTab.EXPENSES -> ExpensesScreen(
+                    snapshot = snapshot,
+                    onAdd = { sheet = BottomSheet.EXPENSE },
+                    onDelete = viewModel::deleteExpense,
                 )
 
-                AppTab.ARCHIVE -> ArchiveScreen(
-                    tasks = archivedTasks,
-                    onRestore = viewModel::restore,
-                    onDelete = viewModel::delete,
+                AppTab.HISTORY -> HistoryScreen(
+                    snapshot = snapshot,
+                    onDeleteIncome = viewModel::deleteIncome,
+                    onDeleteExpense = viewModel::deleteExpense,
                 )
             }
         }
     }
 
-    if (editorOpen) {
-        TaskEditorSheet(
-            initial = editingTask,
-            onDismiss = { editorOpen = false },
-            onSave = {
-                viewModel.save(it)
-                editorOpen = false
-            },
+    when (sheet) {
+        BottomSheet.QUICK_ADD -> QuickAddSheet(
+            onDismiss = { sheet = BottomSheet.NONE },
+            onIncome = { sheet = BottomSheet.INCOME },
+            onExpense = { sheet = BottomSheet.EXPENSE },
+            onPlan = { sheet = BottomSheet.PLAN },
         )
-    }
 
-    if (filterOpen) {
-        FilterSheet(
-            selected = selectedFilter,
-            onSelect = {
-                viewModel.setFilter(it)
-                filterOpen = false
+        BottomSheet.INCOME -> IncomeSheet(
+            baseCurrency = settings.baseCurrency,
+            onDismiss = { sheet = BottomSheet.NONE },
+            onSave = { source, amount, currency, date ->
+                viewModel.addIncome(source, amount, currency, date)
+                sheet = BottomSheet.NONE
             },
-            onDismiss = { filterOpen = false },
         )
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FokusTopBar(
-    tab: AppTab,
-    searchOpen: Boolean,
-    query: String,
-    activeFilter: MainViewModel.Filter,
-    onSearchClick: () -> Unit,
-    onQueryChange: (String) -> Unit,
-    onFilterClick: () -> Unit,
-    onCloseSearch: () -> Unit,
-) {
-    Column {
-        androidx.compose.material3.CenterAlignedTopAppBar(
-            title = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = when (tab) {
-                            AppTab.MATRIX -> "Dzień dobry 👋"
-                            AppTab.TODAY -> "Plan na dziś"
-                            AppTab.ARCHIVE -> "Twoja historia"
-                        },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (tab == AppTab.MATRIX) {
-                        Text(
-                            "Małe kroki, duży spokój",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+        BottomSheet.EXPENSE -> ExpenseSheet(
+            baseCurrency = settings.baseCurrency,
+            onDismiss = { sheet = BottomSheet.NONE },
+            onSave = { name, amount, currency, quadrant, date ->
+                viewModel.addExpense(name, amount, currency, quadrant, date)
+                sheet = BottomSheet.NONE
             },
-            actions = {
-                IconButton(onClick = onSearchClick) {
-                    Icon(Icons.Outlined.Search, contentDescription = "Szukaj")
-                }
-                IconButton(onClick = onFilterClick) {
-                    Icon(
-                        Icons.Outlined.Tune,
-                        contentDescription = "Filtruj",
-                        tint = if (activeFilter != MainViewModel.Filter.ALL) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-            ),
         )
-        if (searchOpen) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    placeholder = { Text("Szukaj zadań, tagów, projektów") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                )
-                IconButton(onClick = onCloseSearch) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Zamknij wyszukiwanie")
+
+        BottomSheet.PLAN -> PlanSheet(
+            snapshot = snapshot,
+            suggested = viewModel.suggestedPlan(),
+            isSetup = false,
+            onDismiss = { sheet = BottomSheet.NONE },
+            onSave = { plan ->
+                viewModel.savePlan(plan)
+                sheet = BottomSheet.NONE
+            },
+        )
+
+        BottomSheet.TRANSFER -> TransferSheet(
+            snapshot = snapshot,
+            onDismiss = { sheet = BottomSheet.NONE },
+            onTransfer = { from, to, amount ->
+                viewModel.transfer(from, to, amount)
+                sheet = BottomSheet.NONE
+            },
+        )
+
+        BottomSheet.SETTINGS -> SettingsSheet(
+            settings = settings,
+            hasFinancialData = snapshot.incomes.isNotEmpty() || snapshot.expenses.isNotEmpty() || snapshot.allocations.isNotEmpty(),
+            onDismiss = { sheet = BottomSheet.NONE },
+            onSave = { currency, startDay ->
+                viewModel.updateSettings(currency, startDay)
+                sheet = BottomSheet.NONE
+            },
+        )
+
+        BottomSheet.SETUP -> SetupSheet(
+            settings = settings,
+            onSkip = {
+                viewModel.completeSetup()
+                sheet = BottomSheet.NONE
+            },
+            onSave = { currency, startDay, incomeSource, income, plan ->
+                viewModel.updateSettings(currency, startDay)
+                if (income != null && income > 0L) {
+                    viewModel.addIncome(incomeSource.ifBlank { "Dochód" }, income, currency, System.currentTimeMillis())
                 }
-            }
-        }
+                viewModel.savePlan(plan)
+                sheet = BottomSheet.NONE
+            },
+        )
+
+        BottomSheet.NONE -> Unit
     }
 }
 
 @Composable
-private fun MatrixScreen(
-    tasks: List<TaskEntity>,
-    onOpenTask: (TaskEntity) -> Unit,
-    onComplete: (TaskEntity) -> Unit,
-    onArchive: (TaskEntity) -> Unit,
-    onDelete: (TaskEntity) -> Unit,
-    onMove: (TaskEntity, Int?) -> Unit,
+private fun BudgetScreen(
+    snapshot: BudgetSnapshot,
+    settings: FinanceSettings,
+    onPlan: () -> Unit,
+    onIncome: () -> Unit,
+    onExpense: () -> Unit,
+    onTransfer: () -> Unit,
+    onSetup: () -> Unit,
 ) {
-    val now = System.currentTimeMillis()
-    val urgentCount = tasks.count { isUrgent(it, now) }
-    val datedCount = tasks.count { it.dueAt != null }
-
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
     ) {
         Spacer(Modifier.height(4.dp))
-        OverviewCard(
-            total = tasks.size,
-            urgent = urgentCount,
-            dated = datedCount,
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            "Twoje priorytety",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            "Termin podpowiada pilność. Ważność ustawiasz Ty.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(10.dp))
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuadrantCard(
-                quadrant = Quadrant.DO_NOW,
-                tasks = tasks.filter { quadrantFor(it, now) == Quadrant.DO_NOW },
+        SummaryCard(snapshot, settings)
+        Spacer(Modifier.height(14.dp))
+        if (snapshot.allocations.isEmpty()) {
+            SetupBanner(onSetup = onSetup, onIncome = onIncome)
+            Spacer(Modifier.height(16.dp))
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text("Macierz wydatków", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    "Każdy wydatek ma swoje miejsce.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onPlan) {
+                Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("Plan")
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FinanceQuadrantCard(
+                quadrant = FinanceQuadrant.IMPORTANT_URGENT,
+                snapshot = snapshot,
                 modifier = Modifier.weight(1f),
-                onOpenTask = onOpenTask,
-                onComplete = onComplete,
-                onArchive = onArchive,
-                onDelete = onDelete,
-                onMove = onMove,
             )
-            QuadrantCard(
-                quadrant = Quadrant.SCHEDULE,
-                tasks = tasks.filter { quadrantFor(it, now) == Quadrant.SCHEDULE },
+            FinanceQuadrantCard(
+                quadrant = FinanceQuadrant.IMPORTANT_NOT_URGENT,
+                snapshot = snapshot,
                 modifier = Modifier.weight(1f),
-                onOpenTask = onOpenTask,
-                onComplete = onComplete,
-                onArchive = onArchive,
-                onDelete = onDelete,
-                onMove = onMove,
             )
         }
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuadrantCard(
-                quadrant = Quadrant.DELEGATE,
-                tasks = tasks.filter { quadrantFor(it, now) == Quadrant.DELEGATE },
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FinanceQuadrantCard(
+                quadrant = FinanceQuadrant.NOT_IMPORTANT_URGENT,
+                snapshot = snapshot,
                 modifier = Modifier.weight(1f),
-                onOpenTask = onOpenTask,
-                onComplete = onComplete,
-                onArchive = onArchive,
-                onDelete = onDelete,
-                onMove = onMove,
             )
-            QuadrantCard(
-                quadrant = Quadrant.ELIMINATE,
-                tasks = tasks.filter { quadrantFor(it, now) == Quadrant.ELIMINATE },
+            FinanceQuadrantCard(
+                quadrant = FinanceQuadrant.NOT_IMPORTANT_NOT_URGENT,
+                snapshot = snapshot,
                 modifier = Modifier.weight(1f),
-                onOpenTask = onOpenTask,
-                onComplete = onComplete,
-                onArchive = onArchive,
-                onDelete = onDelete,
-                onMove = onMove,
             )
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onIncome, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Outlined.ArrowUpward, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Wpływ")
+            }
+            OutlinedButton(onClick = onExpense, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Outlined.ArrowDownward, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Wydatek")
+            }
+        }
+        OutlinedButton(onClick = onTransfer, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Icon(Icons.Outlined.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(7.dp))
+            Text("Przenieś środki między ćwiartkami")
         }
         Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun OverviewCard(total: Int, urgent: Int, dated: Int) {
+private fun SummaryCard(snapshot: BudgetSnapshot, settings: FinanceSettings) {
+    val remainingColor = if (snapshot.remainingMinor < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Macierz jest Twoją mapą.",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        "Pozostało w tym okresie",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (total == 0) "Dodaj pierwsze zadanie i odzyskaj przestrzeń w głowie."
-                        else "Wiesz, co jest ważne — teraz wybierz jeden następny krok.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        formatMoney(snapshot.remainingMinor, snapshot.baseCurrency),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = remainingColor,
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    Text(
-                        total.toString(),
-                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null, modifier = Modifier.padding(14.dp).size(28.dp))
                 }
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryPill("pilnych", urgent)
-                SummaryPill("z terminem", dated)
+                SummaryPill("wpływy", formatMoney(snapshot.totalIncomeMinor, settings.baseCurrency))
+                SummaryPill("wydatki", formatMoney(snapshot.totalSpentMinor, settings.baseCurrency))
+            }
+            if (snapshot.unallocatedMinor != 0L) {
+                Text(
+                    if (snapshot.unallocatedMinor > 0) {
+                        "Nieprzydzielone: ${formatMoney(snapshot.unallocatedMinor, settings.baseCurrency)}"
+                    } else {
+                        "Plan przekracza wpływy o ${formatMoney(-snapshot.unallocatedMinor, settings.baseCurrency)}"
+                    },
+                    modifier = Modifier.padding(top = 12.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (snapshot.unallocatedMinor > 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SummaryPill(label: String, count: Int) {
-    Surface(
-        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.09f),
-        shape = RoundedCornerShape(50),
-    ) {
+private fun SummaryPill(label: String, value: String) {
+    Surface(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.09f), shape = RoundedCornerShape(50)) {
         Text(
-            "$count $label",
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+            "$label  $value",
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
 }
 
-private data class QuadrantPalette(val background: Color, val accent: Color, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+@Composable
+private fun SetupBanner(onSetup: () -> Unit, onIncome: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
+                Text("Ustaw swój pierwszy plan", fontWeight = FontWeight.Bold)
+            }
+            Text(
+                "Kreator pomoże rozdzielić wpływ bez narzucania gotowych proporcji.",
+                modifier = Modifier.padding(top = 7.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onSetup) { Text("Uruchom kreator") }
+                OutlinedButton(onClick = onIncome) { Text("Dodaj wpływ") }
+            }
+        }
+    }
+}
+
+private data class QuadrantColors(val background: Color, val accent: Color, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 @Composable
-private fun paletteFor(quadrant: Quadrant): QuadrantPalette {
+private fun quadrantColors(quadrant: FinanceQuadrant): QuadrantColors {
     val scheme = MaterialTheme.colorScheme
     return when (quadrant) {
-        Quadrant.DO_NOW -> QuadrantPalette(
-            background = scheme.errorContainer.copy(alpha = 0.72f),
-            accent = scheme.error,
-            icon = Icons.Outlined.WarningAmber,
-        )
-        Quadrant.SCHEDULE -> QuadrantPalette(
-            background = scheme.tertiaryContainer.copy(alpha = 0.72f),
-            accent = scheme.onTertiaryContainer,
-            icon = Icons.Outlined.CalendarMonth,
-        )
-        Quadrant.DELEGATE -> QuadrantPalette(
-            background = Color(0xFFDCEFF4).copy(alpha = if (scheme.surface == Color(0xFFFFF8F6)) 1f else 0.25f),
-            accent = Color(0xFF27657A),
-            icon = Icons.Outlined.ArrowForward,
-        )
-        Quadrant.ELIMINATE -> QuadrantPalette(
-            background = scheme.surfaceVariant.copy(alpha = 0.7f),
-            accent = scheme.onSurfaceVariant,
-            icon = Icons.Outlined.DeleteOutline,
-        )
+        FinanceQuadrant.IMPORTANT_URGENT -> QuadrantColors(scheme.errorContainer.copy(alpha = 0.75f), scheme.error, Icons.Outlined.WarningAmber)
+        FinanceQuadrant.IMPORTANT_NOT_URGENT -> QuadrantColors(scheme.tertiaryContainer.copy(alpha = 0.75f), scheme.onTertiaryContainer, Icons.Outlined.Savings)
+        FinanceQuadrant.NOT_IMPORTANT_URGENT -> QuadrantColors(Color(0xFFDCEFF4), Color(0xFF27657A), Icons.Outlined.Payments)
+        FinanceQuadrant.NOT_IMPORTANT_NOT_URGENT -> QuadrantColors(scheme.surfaceVariant.copy(alpha = 0.75f), scheme.onSurfaceVariant, Icons.Outlined.ReceiptLong)
     }
 }
 
 @Composable
-private fun QuadrantCard(
-    quadrant: Quadrant,
-    tasks: List<TaskEntity>,
+private fun FinanceQuadrantCard(
+    quadrant: FinanceQuadrant,
+    snapshot: BudgetSnapshot,
     modifier: Modifier,
-    onOpenTask: (TaskEntity) -> Unit,
-    onComplete: (TaskEntity) -> Unit,
-    onArchive: (TaskEntity) -> Unit,
-    onDelete: (TaskEntity) -> Unit,
-    onMove: (TaskEntity, Int?) -> Unit,
 ) {
-    val palette = paletteFor(quadrant)
+    val colors = quadrantColors(quadrant)
+    val planned = snapshot.planned(quadrant)
+    val spent = snapshot.spent(quadrant)
+    val remaining = planned - spent
+    val progress = if (planned > 0) (spent.toFloat() / planned.toFloat()).coerceIn(0f, 1.2f) else 0f
     Card(
-        modifier = modifier.heightIn(min = 214.dp),
-        colors = CardDefaults.cardColors(containerColor = palette.background),
-        border = BorderStroke(1.dp, palette.accent.copy(alpha = 0.16f)),
+        modifier = modifier.heightIn(min = 184.dp),
         shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.background),
+        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.14f)),
     ) {
         Column(Modifier.padding(13.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = palette.accent.copy(alpha = 0.13f),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Icon(
-                        palette.icon,
-                        contentDescription = null,
-                        modifier = Modifier.padding(7.dp).size(17.dp),
-                        tint = palette.accent,
-                    )
+                Surface(color = colors.accent.copy(alpha = 0.12f), shape = RoundedCornerShape(9.dp)) {
+                    Icon(colors.icon, contentDescription = null, modifier = Modifier.padding(7.dp).size(17.dp), tint = colors.accent)
                 }
-                Spacer(Modifier.width(8.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        quadrant.title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = palette.accent,
-                    )
-                    Text(
-                        quadrant.subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.accent.copy(alpha = 0.78f),
-                    )
-                }
+                Spacer(Modifier.width(7.dp))
                 Text(
-                    tasks.size.toString(),
-                    style = MaterialTheme.typography.titleMedium,
+                    quadrant.title,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = palette.accent,
-                )
-            }
-            Spacer(Modifier.height(9.dp))
-            if (tasks.isEmpty()) {
-                Text(
-                    "Pusto. Dobrze Ci idzie!",
-                    modifier = Modifier.padding(vertical = 18.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.accent.copy(alpha = 0.75f),
-                )
-            } else {
-                tasks.take(3).forEach { task ->
-                    CompactTaskRow(
-                        task = task,
-                        onOpen = { onOpenTask(task) },
-                        onComplete = { onComplete(task) },
-                        onArchive = { onArchive(task) },
-                        onDelete = { onDelete(task) },
-                        onMove = { quadrantIndex -> onMove(task, quadrantIndex) },
-                        accent = palette.accent,
-                    )
-                }
-                if (tasks.size > 3) {
-                    Text(
-                        "+${tasks.size - 3} więcej — otwórz listę Dziś",
-                        modifier = Modifier.padding(top = 6.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.accent,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactTaskRow(
-    task: TaskEntity,
-    onOpen: () -> Unit,
-    onComplete: () -> Unit,
-    onArchive: () -> Unit,
-    onDelete: () -> Unit,
-    onMove: (Int?) -> Unit,
-    accent: Color,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(onClick = onOpen).padding(vertical = 6.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        IconButton(onClick = onComplete, modifier = Modifier.size(25.dp)) {
-            Icon(
-                Icons.Outlined.RadioButtonUnchecked,
-                contentDescription = "Oznacz jako wykonane",
-                tint = accent,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        Spacer(Modifier.width(5.dp))
-        Column(Modifier.weight(1f).padding(top = 2.dp)) {
-            Text(
-                task.title,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            TaskMeta(task, compact = true)
-        }
-        TaskMenu(
-            task = task,
-            onMove = onMove,
-            onArchive = onArchive,
-            onDelete = onDelete,
-        )
-    }
-}
-
-@Composable
-private fun TaskMeta(task: TaskEntity, compact: Boolean = false) {
-    val due = task.dueAt
-    if (due != null || task.project.isNotBlank() || task.tags.isNotBlank()) {
-        Row(
-            modifier = Modifier.padding(top = if (compact) 2.dp else 5.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (due != null) {
-                val urgent = isUrgent(task)
-                Icon(
-                    if (urgent) Icons.Outlined.WarningAmber else Icons.Outlined.Event,
-                    contentDescription = null,
-                    modifier = Modifier.size(if (compact) 13.dp else 15.dp),
-                    tint = if (urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    formatDue(due),
-                    style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                    color = if (urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (task.project.isNotBlank()) {
-                Text(
-                    "· ${task.project}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    color = colors.accent,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (task.reminderOffsetMinutes != null) {
-                Icon(
-                    Icons.Outlined.NotificationsNone,
-                    contentDescription = "Ma przypomnienie",
-                    modifier = Modifier.size(13.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskMenu(
-    task: TaskEntity,
-    onMove: (Int?) -> Unit,
-    onArchive: () -> Unit,
-    onDelete: () -> Unit,
-    onRestore: (() -> Unit)? = null,
-    allowMove: Boolean = true,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(30.dp)) {
-            Icon(Icons.Outlined.MoreVert, contentDescription = "Więcej opcji", modifier = Modifier.size(18.dp))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (allowMove) {
-                DropdownMenuItem(
-                    text = { Text("Automatycznie") },
-                    onClick = { expanded = false; onMove(null) },
-                )
-                Quadrant.entries.forEach { quadrant ->
-                    DropdownMenuItem(
-                        text = { Text(quadrant.title) },
-                        onClick = { expanded = false; onMove(quadrant.index) },
-                    )
-                }
-                HorizontalDivider()
-            }
-            if (onRestore != null) {
-                DropdownMenuItem(
-                    text = { Text("Przywróć") },
-                    leadingIcon = { Icon(Icons.Outlined.Restore, contentDescription = null) },
-                    onClick = { expanded = false; onRestore() },
-                )
-            } else {
-                DropdownMenuItem(
-                    text = { Text("Archiwizuj") },
-                    leadingIcon = { Icon(Icons.Outlined.Archive, contentDescription = null) },
-                    onClick = { expanded = false; onArchive() },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text("Usuń") },
-                leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
-                onClick = { expanded = false; onDelete() },
+            Text(
+                quadrant.subtitle,
+                modifier = Modifier.padding(top = 5.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.accent.copy(alpha = 0.78f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(13.dp))
+            Text(
+                formatMoney(remaining, snapshot.baseCurrency),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                "z ${formatMoney(planned, snapshot.baseCurrency)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(9.dp))
+            androidx.compose.material3.LinearProgressIndicator(
+                progress = progress.coerceAtMost(1f),
+                modifier = Modifier.fillMaxWidth(),
+                color = if (spent > planned && planned > 0) MaterialTheme.colorScheme.error else colors.accent,
+                trackColor = colors.accent.copy(alpha = 0.15f),
+            )
+            Text(
+                "wydano ${formatMoney(spent, snapshot.baseCurrency)}",
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.accent.copy(alpha = 0.82f),
             )
         }
     }
 }
 
 @Composable
-private fun TodayScreen(
-    tasks: List<TaskEntity>,
-    onOpenTask: (TaskEntity) -> Unit,
-    onComplete: (TaskEntity) -> Unit,
-    onArchive: (TaskEntity) -> Unit,
-    onDelete: (TaskEntity) -> Unit,
-    onMove: (TaskEntity, Int?) -> Unit,
+private fun ExpensesScreen(
+    snapshot: BudgetSnapshot,
+    onAdd: () -> Unit,
+    onDelete: (Long) -> Unit,
 ) {
-    val todayTasks = tasks.filter { task ->
-        val due = task.dueAt ?: return@filter false
-        isToday(due) || due < startOfToday()
-    }
-    if (todayTasks.isEmpty()) {
-        EmptyState(
-            icon = Icons.Outlined.CheckCircle,
-            title = "Dziś masz czystą kartę",
-            body = "Zadania z terminem na dziś pojawią się tutaj. Możesz też dodać coś z macierzy.",
-        )
-        return
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-    ) {
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                shape = RoundedCornerShape(18.dp),
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("W tym okresie", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(formatMoney(snapshot.totalSpentMinor, snapshot.baseCurrency), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+            OutlinedButton(onClick = onAdd) {
+                Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(17.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("Wydatek")
+            }
+        }
+        if (snapshot.expenses.isEmpty()) {
+            EmptyState(
+                icon = Icons.Outlined.ReceiptLong,
+                title = "Brak wydatków",
+                body = "Dodaj pierwszy wydatek, a aplikacja zaproponuje mu ćwiartkę.",
+            )
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 5.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Today, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Najpierw to, co ma znaczenie.", fontWeight = FontWeight.Bold)
-                        Text(
-                            "${todayTasks.size} ${polishTaskWord(todayTasks.size)} do przejrzenia",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                items(snapshot.expenses, key = { it.id }) { expense ->
+                    ExpenseRow(expense, snapshot.baseCurrency, onDelete = { onDelete(expense.id) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpenseRow(expense: ExpenseEntity, baseCurrency: String, onDelete: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val quadrant = FinanceQuadrant.fromIndex(expense.quadrantIndex)
+    val colors = quadrantColors(quadrant)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+    ) {
+        Row(Modifier.padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = colors.background, shape = RoundedCornerShape(11.dp)) {
+                Icon(colors.icon, contentDescription = null, modifier = Modifier.padding(9.dp).size(19.dp), tint = colors.accent)
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(expense.name, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${quadrant.title} · ${formatDate(expense.occurredAt)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.accent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (expense.currency != baseCurrency) {
+                    Text(
+                        "${formatMoney(expense.amountMinor, expense.currency)} · kurs zapisany lokalnie",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    if (expense.baseAmountMinor != null) formatMoney(expense.baseAmountMinor, baseCurrency) else "—",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error.takeIf { expense.baseAmountMinor == null } ?: MaterialTheme.colorScheme.onSurface,
+                )
+                Box {
+                    IconButton(onClick = { expanded = true }, modifier = Modifier.size(27.dp)) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "Opcje", modifier = Modifier.size(17.dp))
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Usuń") },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+                            onClick = { expanded = false; onDelete() },
                         )
                     }
                 }
             }
         }
-        items(todayTasks, key = { it.id }) { task ->
-            FullTaskRow(
-                task = task,
-                onOpen = { onOpenTask(task) },
-                onComplete = { onComplete(task) },
-                onArchive = { onArchive(task) },
-                onDelete = { onDelete(task) },
-                onMove = { onMove(task, it) },
-            )
-        }
     }
 }
 
 @Composable
-private fun FullTaskRow(
-    task: TaskEntity,
-    onOpen: () -> Unit,
-    onComplete: () -> Unit,
-    onArchive: () -> Unit,
-    onDelete: () -> Unit,
-    onMove: (Int?) -> Unit,
+private fun HistoryScreen(
+    snapshot: BudgetSnapshot,
+    onDeleteIncome: (Long) -> Unit,
+    onDeleteExpense: (Long) -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-    ) {
-        Row(Modifier.padding(start = 5.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
-            Checkbox(checked = false, onCheckedChange = { onComplete() })
-            Column(Modifier.weight(1f).padding(top = 8.dp)) {
-                Text(
-                    task.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                TaskMeta(task)
-                if (task.notes.isNotBlank()) {
-                    Text(
-                        task.notes,
-                        modifier = Modifier.padding(top = 4.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            TaskMenu(task, onMove = onMove, onArchive = onArchive, onDelete = onDelete)
-        }
-    }
-}
-
-@Composable
-private fun ArchiveScreen(
-    tasks: List<TaskEntity>,
-    onRestore: (TaskEntity) -> Unit,
-    onDelete: (TaskEntity) -> Unit,
-) {
-    if (tasks.isEmpty()) {
-        EmptyState(
-            icon = Icons.Outlined.Archive,
-            title = "Archiwum jest puste",
-            body = "Wykonane zadania zostaną tutaj jako historia Twojego postępu.",
-        )
+    val events = buildList {
+        snapshot.incomes.forEach { add(HistoryEvent.Income(it)) }
+        snapshot.expenses.forEach { add(HistoryEvent.Expense(it)) }
+    }.sortedByDescending { it.date }
+    if (events.isEmpty()) {
+        EmptyState(Icons.Outlined.History, "Historia jest pusta", "Wpływy i wydatki z bieżącego okresu pojawią się tutaj.")
         return
     }
     LazyColumn(
@@ -829,381 +676,556 @@ private fun ArchiveScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            Text(
-                "${tasks.size} ukończonych ${polishTaskWord(tasks.size)}",
-                modifier = Modifier.padding(bottom = 5.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
+            Text("Wpływy i wydatki", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
-        items(tasks, key = { it.id }) { task ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-            ) {
-                Row(Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
-                    Icon(
-                        Icons.Outlined.CheckCircle,
-                        contentDescription = "Wykonane",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(7.dp).size(21.dp),
-                    )
-                    Column(Modifier.weight(1f).padding(top = 5.dp)) {
-                        Text(
-                            task.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (task.completedAt != null) {
-                            Text(
-                                "Ukończone ${formatDate(task.completedAt)}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    TaskMenu(
-                        task = task,
-                        onMove = { },
-                        onArchive = { },
-                        onDelete = { onDelete(task) },
-                        onRestore = { onRestore(task) },
-                        allowMove = false,
-                    )
-                }
+        items(events, key = { it.key }) { event ->
+            when (event) {
+                is HistoryEvent.Income -> IncomeRow(event.value, snapshot.baseCurrency) { onDeleteIncome(event.value.id) }
+                is HistoryEvent.Expense -> ExpenseRow(event.value, snapshot.baseCurrency) { onDeleteExpense(event.value.id) }
             }
         }
     }
 }
 
+private sealed class HistoryEvent {
+    abstract val date: Long
+    abstract val key: String
+    data class Income(val value: IncomeEntity) : HistoryEvent() {
+        override val date: Long = value.receivedAt
+        override val key: String = "income-${value.id}"
+    }
+    data class Expense(val value: ExpenseEntity) : HistoryEvent() {
+        override val date: Long = value.occurredAt
+        override val key: String = "expense-${value.id}"
+    }
+}
+
 @Composable
-private fun EmptyState(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    body: String,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 35.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+private fun IncomeRow(income: IncomeEntity, baseCurrency: String, onDelete: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
     ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.padding(18.dp).size(34.dp), tint = MaterialTheme.colorScheme.primary)
+        Row(Modifier.padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(11.dp)) {
+                Icon(Icons.Outlined.ArrowUpward, contentDescription = null, modifier = Modifier.padding(9.dp).size(19.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(income.source, fontWeight = FontWeight.Medium)
+                Text(formatDate(income.receivedAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    income.baseAmountMinor?.let { formatMoney(it, baseCurrency, signed = true) } ?: "—",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Box {
+                    IconButton(onClick = { expanded = true }, modifier = Modifier.size(27.dp)) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "Opcje", modifier = Modifier.size(17.dp))
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Usuń") },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+                            onClick = { expanded = false; onDelete() },
+                        )
+                    }
+                }
+            }
         }
-        Spacer(Modifier.height(18.dp))
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(7.dp))
-        Text(
-            body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterSheet(
-    selected: MainViewModel.Filter,
-    onSelect: (MainViewModel.Filter) -> Unit,
+private fun QuickAddSheet(
     onDismiss: () -> Unit,
+    onIncome: () -> Unit,
+    onExpense: () -> Unit,
+    onPlan: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 6.dp)) {
-            Text("Pokaż zadania", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            MainViewModel.Filter.entries.forEach { filter ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { onSelect(filter) }.padding(vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(selected = filter == selected, onClick = { onSelect(filter) })
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(filterLabel(filter), fontWeight = FontWeight.Medium)
-                        Text(filterDescription(filter), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(20.dp)) {
+            Text("Co chcesz dodać?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Wszystko zostaje zapisane tylko na tym urządzeniu.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(15.dp))
+            QuickActionCard(Icons.Outlined.ArrowDownward, "Wydatek", "Aplikacja zaproponuje ćwiartkę", onExpense)
+            QuickActionCard(Icons.Outlined.ArrowUpward, "Wpływ", "Pensja, premia lub inne źródło", onIncome)
+            QuickActionCard(Icons.Outlined.Tune, "Plan budżetu", "Zmień kwoty w macierzy", onPlan)
             Spacer(Modifier.height(12.dp))
         }
     }
 }
 
-private fun filterLabel(filter: MainViewModel.Filter): String = when (filter) {
-    MainViewModel.Filter.ALL -> "Wszystkie aktywne"
-    MainViewModel.Filter.TODAY -> "Na dziś"
-    MainViewModel.Filter.OVERDUE -> "Zaległe"
-    MainViewModel.Filter.NO_DATE -> "Bez terminu"
-}
-
-private fun filterDescription(filter: MainViewModel.Filter): String = when (filter) {
-    MainViewModel.Filter.ALL -> "Pełna macierz zadań"
-    MainViewModel.Filter.TODAY -> "Termin przypada dzisiaj"
-    MainViewModel.Filter.OVERDUE -> "Termin już minął"
-    MainViewModel.Filter.NO_DATE -> "Do zaplanowania"
+@Composable
+private fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(25.dp))
+            Spacer(Modifier.width(13.dp))
+            Column {
+                Text(title, fontWeight = FontWeight.Bold)
+                Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TaskEditorSheet(
-    initial: TaskEntity?,
+private fun IncomeSheet(
+    baseCurrency: String,
     onDismiss: () -> Unit,
-    onSave: (TaskEntity) -> Unit,
+    onSave: (String, Long, String, Long) -> Unit,
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var title by remember(initial?.id) { mutableStateOf(initial?.title.orEmpty()) }
-    var notes by remember(initial?.id) { mutableStateOf(initial?.notes.orEmpty()) }
-    var link by remember(initial?.id) { mutableStateOf(initial?.link.orEmpty()) }
-    var project by remember(initial?.id) { mutableStateOf(initial?.project.orEmpty()) }
-    var tags by remember(initial?.id) { mutableStateOf(initial?.tags.orEmpty()) }
-    var important by remember(initial?.id) { mutableStateOf(initial?.isImportant ?: false) }
-    var dueAt by remember(initial?.id) { mutableStateOf(initial?.dueAt) }
-    var reminder by remember(initial?.id) { mutableStateOf(initial?.reminderOffsetMinutes) }
-    var recurrence by remember(initial?.id) { mutableStateOf(initial?.recurrenceType ?: Recurrence.NONE) }
-    var recurrenceInterval by remember(initial?.id) { mutableStateOf(initial?.recurrenceInterval ?: 1) }
-    var manualQuadrant by remember(initial?.id) { mutableStateOf(initial?.manualQuadrant) }
-    var attemptedSave by remember { mutableStateOf(false) }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 20.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        if (initial == null) "Nowe zadanie" else "Edytuj zadanie",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        "Zamień intencję w konkretny następny krok.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, contentDescription = "Zamknij") }
-            }
-            Spacer(Modifier.height(16.dp))
+    var source by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var currency by remember { mutableStateOf(baseCurrency) }
+    var date by remember { mutableStateOf(System.currentTimeMillis()) }
+    var attempted by remember { mutableStateOf(false) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+            SheetHeader("Dodaj wpływ", "Każdy wpływ zwiększa pulę do rozdzielenia.", onDismiss)
             OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
+                value = source,
+                onValueChange = { source = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Tytuł zadania") },
-                placeholder = { Text("Np. wysłać ofertę klientowi") },
+                label = { Text("Źródło wpływu") },
+                placeholder = { Text("np. pensja, premia, zlecenie") },
                 singleLine = true,
-                isError = attemptedSave && title.isBlank(),
-                supportingText = if (attemptedSave && title.isBlank()) {
-                    { Text("Dodaj tytuł, żeby zapisać zadanie") }
-                } else null,
+                isError = attempted && source.isBlank(),
             )
             Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Notatka (opcjonalnie)") },
-                placeholder = { Text("Kontekst, pierwszy krok, ważne szczegóły…") },
-                minLines = 3,
-                maxLines = 5,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)).padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Outlined.Flag, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("To jest ważne", fontWeight = FontWeight.Medium)
-                    Text("Pilność wynika z terminu", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Switch(checked = important, onCheckedChange = { important = it })
-            }
-            Spacer(Modifier.height(12.dp))
-            ChoiceField(
-                label = "Ćwiartka",
-                value = manualQuadrant?.let { Quadrant.fromIndex(it).title } ?: "Automatycznie z terminu",
-                options = listOf("Automatycznie z terminu" to null) + Quadrant.entries.map { it.title to it.index },
-                onSelect = { selected -> manualQuadrant = selected as? Int },
-            )
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { showDatePicker(context, dueAt) { dueAt = it } }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text(if (dueAt == null) "Termin" else formatDateTime(dueAt!!), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (dueAt != null) {
-                    IconButton(onClick = { dueAt = null; reminder = null }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Usuń termin")
-                    }
-                }
-            }
-            if (dueAt != null) {
-                Spacer(Modifier.height(8.dp))
-                ChoiceField(
-                    label = "Przypomnienie",
-                    value = reminderLabel(reminder),
-                    options = listOf(
-                        "Bez przypomnienia" to null,
-                        "W chwili terminu" to 0,
-                        "15 minut wcześniej" to 15,
-                        "Godzinę wcześniej" to 60,
-                        "Dzień wcześniej" to 24 * 60,
-                    ),
-                    onSelect = { reminder = it as? Int },
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            ChoiceField(
-                label = "Powtarzanie",
-                value = Recurrence.label(recurrence),
-                options = listOf(
-                    "Nie powtarza się" to Recurrence.NONE,
-                    "Codziennie" to Recurrence.DAILY,
-                    "Co tydzień" to Recurrence.WEEKLY,
-                    "Co miesiąc" to Recurrence.MONTHLY,
-                    "Co kilka dni" to Recurrence.CUSTOM,
-                ),
-                onSelect = { recurrence = it as String },
-            )
-            if (recurrence == Recurrence.CUSTOM) {
-                Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
-                    value = recurrenceInterval.toString(),
-                    onValueChange = { recurrenceInterval = it.toIntOrNull()?.coerceAtLeast(1) ?: 1 },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Powtarzaj co ile dni") },
+                    value = amount,
+                    onValueChange = { amount = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Kwota") },
+                    placeholder = { Text("0,00") },
                     singleLine = true,
+                    isError = attempted && parseMinorUnits(amount) == null,
                 )
+                ChoiceButton("Waluta", currency, supportedCurrencies, modifier = Modifier.weight(0.72f)) { currency = it }
             }
             Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = project,
-                onValueChange = { project = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Projekt (opcjonalnie)") },
-                leadingIcon = { Icon(Icons.Outlined.GridView, contentDescription = null) },
-                singleLine = true,
-            )
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = tags,
-                onValueChange = { tags = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Tagi") },
-                placeholder = { Text("np. praca, telefon, 15 min") },
-                singleLine = true,
-            )
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = link,
-                onValueChange = { link = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Link (opcjonalnie)") },
-                leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null) },
-                singleLine = true,
-            )
+            DateButton("Data wpływu", date, context) { date = it }
             Spacer(Modifier.height(18.dp))
             Button(
                 onClick = {
-                    attemptedSave = true
-                    if (title.isNotBlank()) {
-                        val now = System.currentTimeMillis()
-                        onSave(
-                            TaskEntity(
-                                id = initial?.id ?: 0,
-                                title = title.trim(),
-                                notes = notes.trim(),
-                                link = link.trim(),
-                                isImportant = important,
-                                manualQuadrant = manualQuadrant,
-                                dueAt = dueAt,
-                                reminderOffsetMinutes = reminder,
-                                recurrenceType = recurrence,
-                                recurrenceInterval = recurrenceInterval,
-                                project = project.trim(),
-                                tags = tags.trim(),
-                                completedAt = initial?.completedAt,
-                                isArchived = initial?.isArchived ?: false,
-                                createdAt = initial?.createdAt ?: now,
-                                updatedAt = now,
-                            ),
-                        )
-                    }
+                    attempted = true
+                    val parsed = parseMinorUnits(amount)
+                    if (source.isNotBlank() && parsed != null) onSave(source.trim(), parsed, currency, date)
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(15.dp),
             ) {
                 Icon(Icons.Outlined.Check, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (initial == null) "Dodaj zadanie" else "Zapisz zmiany")
+                Spacer(Modifier.width(7.dp))
+                Text("Zapisz wpływ")
             }
             Spacer(Modifier.height(22.dp))
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> ChoiceField(
+private fun ExpenseSheet(
+    baseCurrency: String,
+    onDismiss: () -> Unit,
+    onSave: (String, Long, String, FinanceQuadrant, Long) -> Unit,
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var name by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var currency by remember { mutableStateOf(baseCurrency) }
+    var quadrant by remember { mutableStateOf(FinanceQuadrant.NOT_IMPORTANT_NOT_URGENT) }
+    var date by remember { mutableStateOf(System.currentTimeMillis()) }
+    var attempted by remember { mutableStateOf(false) }
+    val suggestion = suggestQuadrant(name)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+            SheetHeader("Dodaj wydatek", "Wybierz ćwiartkę po sprawdzeniu propozycji.", onDismiss)
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Nazwa wydatku") },
+                placeholder = { Text("np. czynsz, zakupy, kino") },
+                singleLine = true,
+                isError = attempted && name.isBlank(),
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Kwota") },
+                    placeholder = { Text("0,00") },
+                    singleLine = true,
+                    isError = attempted && parseMinorUnits(amount) == null,
+                )
+                ChoiceButton("Waluta", currency, supportedCurrencies, modifier = Modifier.weight(0.72f)) { currency = it }
+            }
+            Spacer(Modifier.height(11.dp))
+            if (name.isNotBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                ) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(9.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Propozycja aplikacji", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Text(suggestion.title, style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = { quadrant = suggestion }) { Text("Użyj") }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+            ChoiceButton(
+                label = "Wybrana ćwiartka",
+                value = quadrant.title,
+                options = FinanceQuadrant.entries.toList(),
+                modifier = Modifier.fillMaxWidth(),
+                optionLabel = { it.title },
+            ) { quadrant = it }
+            Spacer(Modifier.height(10.dp))
+            DateButton("Data wydatku", date, context) { date = it }
+            Spacer(Modifier.height(18.dp))
+            Button(
+                onClick = {
+                    attempted = true
+                    val parsed = parseMinorUnits(amount)
+                    if (name.isNotBlank() && parsed != null) onSave(name.trim(), parsed, currency, quadrant, date)
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
+                Icon(Icons.Outlined.Check, contentDescription = null)
+                Spacer(Modifier.width(7.dp))
+                Text("Zapisz wydatek")
+            }
+            Spacer(Modifier.height(22.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlanSheet(
+    snapshot: BudgetSnapshot,
+    suggested: Map<FinanceQuadrant, Long>,
+    isSetup: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (Map<FinanceQuadrant, Long>) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var values by remember(snapshot.period.key, isSetup) {
+        mutableStateOf(
+            FinanceQuadrant.entries.associateWith { quadrant ->
+                snapshot.allocations.firstOrNull { it.quadrantIndex == quadrant.index }?.plannedMinor?.let(::minorToInput) ?: ""
+            },
+        )
+    }
+    var error by remember { mutableStateOf<String?>(null) }
+    val sum = values.values.mapNotNull(::parseMinorUnits).sum()
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+            SheetHeader(
+                if (isSetup) "Pierwszy plan" else "Plan budżetu",
+                "Wpisz kwoty, które chcesz przeznaczyć na każdy obszar.",
+                onDismiss,
+            )
+            if (!isSetup && snapshot.totalIncomeMinor > 0) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Propozycja z historii", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                            Text("To sugestia — zatwierdź ją dopiero, gdy Ci odpowiada.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = {
+                            values = suggested.mapValues { (_, amount) -> minorToInput(amount) }
+                        }) { Text("Wstaw") }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+            FinanceQuadrant.entries.forEach { quadrant ->
+                val colors = quadrantColors(quadrant)
+                OutlinedTextField(
+                    value = values[quadrant].orEmpty(),
+                    onValueChange = { value -> values = values.toMutableMap().apply { put(quadrant, value) } },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    label = { Text(quadrant.title) },
+                    supportingText = { Text(quadrant.subtitle) },
+                    leadingIcon = { Icon(colors.icon, contentDescription = null, tint = colors.accent) },
+                    singleLine = true,
+                )
+            }
+            Text(
+                "Suma planu: ${formatMoney(sum, snapshot.baseCurrency)} · wpływy: ${formatMoney(snapshot.totalIncomeMinor, snapshot.baseCurrency)}",
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (sum > snapshot.totalIncomeMinor && snapshot.totalIncomeMinor > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            error?.let {
+                Text(it, modifier = Modifier.padding(top = 5.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(15.dp))
+            Button(
+                onClick = {
+                    val parsed = values.mapValues { (_, value) -> parseMinorUnits(value) ?: 0L }
+                    if (snapshot.totalIncomeMinor > 0 && parsed.values.sum() > snapshot.totalIncomeMinor) {
+                        error = "Plan nie może przekraczać wpływów. Zmniejsz jedną z kwot."
+                    } else {
+                        onSave(parsed)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
+                Icon(Icons.Outlined.Check, contentDescription = null)
+                Spacer(Modifier.width(7.dp))
+                Text("Zapisz plan")
+            }
+            Spacer(Modifier.height(22.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SetupSheet(
+    settings: FinanceSettings,
+    onSkip: () -> Unit,
+    onSave: (String, Int, String, Long?, Map<FinanceQuadrant, Long>) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var currency by remember { mutableStateOf(settings.baseCurrency) }
+    var startDay by remember { mutableStateOf(settings.budgetStartDay.toString()) }
+    var incomeSource by remember { mutableStateOf("Pensja") }
+    var income by remember { mutableStateOf("") }
+    var planValues by remember { mutableStateOf(FinanceQuadrant.entries.associateWith { "" }) }
+    var error by remember { mutableStateOf<String?>(null) }
+    ModalBottomSheet(onDismissRequest = onSkip, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+            SheetHeader("Ustaw swój budżet", "Kilka prostych pytań i masz punkt wyjścia — bez narzuconych proporcji.", onSkip)
+            Text("Waluta bazowa", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(4.dp))
+            ChoiceButton("Waluta", currency, supportedCurrencies, modifier = Modifier.fillMaxWidth()) { currency = it }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = startDay,
+                onValueChange = { startDay = it.filter(Char::isDigit).take(2) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Dzień rozpoczęcia okresu") },
+                supportingText = { Text("Np. 1 dla miesiąca kalendarzowego albo 10 po wypłacie") },
+                singleLine = true,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text("Pierwszy wpływ (opcjonalnie)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(value = incomeSource, onValueChange = { incomeSource = it }, modifier = Modifier.weight(1f), label = { Text("Źródło") }, singleLine = true)
+                OutlinedTextField(value = income, onValueChange = { income = it }, modifier = Modifier.weight(0.72f), label = { Text("Kwota") }, placeholder = { Text("0,00") }, singleLine = true)
+            }
+            Spacer(Modifier.height(14.dp))
+            Text("Jak chcesz rozdysponować wpływ?", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("Możesz zostawić puste pola i uzupełnić plan później.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(5.dp))
+            FinanceQuadrant.entries.forEach { quadrant ->
+                OutlinedTextField(
+                    value = planValues[quadrant].orEmpty(),
+                    onValueChange = { value -> planValues = planValues.toMutableMap().apply { put(quadrant, value) } },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                    label = { Text(quadrant.title) },
+                    singleLine = true,
+                )
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            Spacer(Modifier.height(15.dp))
+            Button(
+                onClick = {
+                    val parsedIncome = parseMinorUnits(income)
+                    val plan = planValues.mapValues { (_, value) -> parseMinorUnits(value) ?: 0L }
+                    val parsedDay = startDay.toIntOrNull()?.coerceIn(1, 28) ?: 1
+                    if (parsedIncome != null && plan.values.sum() > parsedIncome) {
+                        error = "Podział nie może przekraczać pierwszego wpływu."
+                    } else {
+                        onSave(currency, parsedDay, incomeSource, parsedIncome, plan)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
+                Icon(Icons.Outlined.Check, contentDescription = null)
+                Spacer(Modifier.width(7.dp))
+                Text("Zapisz i zacznij")
+            }
+            TextButton(onClick = onSkip, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Pomiń na razie") }
+            Spacer(Modifier.height(18.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransferSheet(
+    snapshot: BudgetSnapshot,
+    onDismiss: () -> Unit,
+    onTransfer: (FinanceQuadrant, FinanceQuadrant, Long) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var from by remember { mutableStateOf(FinanceQuadrant.IMPORTANT_URGENT) }
+    var to by remember { mutableStateOf(FinanceQuadrant.IMPORTANT_NOT_URGENT) }
+    var amount by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
+            SheetHeader("Przenieś środki", "Zmiana zostanie zapisana w historii budżetu.", onDismiss)
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                    Spacer(Modifier.width(8.dp))
+                    Text("To zmieni limity, ale nie zmieni już zapisanych wydatków.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Spacer(Modifier.height(11.dp))
+            ChoiceButton("Z ćwiartki", from.title, FinanceQuadrant.entries.toList(), modifier = Modifier.fillMaxWidth(), optionLabel = { it.title }) { from = it }
+            Spacer(Modifier.height(9.dp))
+            ChoiceButton("Do ćwiartki", to.title, FinanceQuadrant.entries.toList(), modifier = Modifier.fillMaxWidth(), optionLabel = { it.title }) { to = it }
+            Spacer(Modifier.height(9.dp))
+            OutlinedTextField(value = amount, onValueChange = { amount = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Kwota") }, singleLine = true)
+            error?.let { Text(it, modifier = Modifier.padding(top = 5.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            Spacer(Modifier.height(15.dp))
+            Button(
+                onClick = {
+                    val parsed = parseMinorUnits(amount)
+                    when {
+                        from == to -> error = "Wybierz dwie różne ćwiartki."
+                        parsed == null -> error = "Podaj poprawną kwotę."
+                        parsed > snapshot.planned(from) -> error = "Nie możesz przenieść więcej niż zaplanowano w tej ćwiartce."
+                        else -> onTransfer(from, to, parsed)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Przenieś środki") }
+            Spacer(Modifier.height(22.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsSheet(
+    settings: FinanceSettings,
+    onDismiss: () -> Unit,
+    onSave: (String, Int) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var currency by remember { mutableStateOf(settings.baseCurrency) }
+    var startDay by remember { mutableStateOf(settings.budgetStartDay.toString()) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
+            SheetHeader("Ustawienia budżetu", "Dane finansowe pozostają na tym urządzeniu.", onDismiss)
+            ChoiceButton("Waluta bazowa", currency, supportedCurrencies, modifier = Modifier.fillMaxWidth()) { currency = it }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = startDay,
+                onValueChange = { startDay = it.filter(Char::isDigit).take(2) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Dzień rozpoczęcia okresu") },
+                supportingText = { Text("Zakres 1–28, żeby każdy miesiąc był jednoznaczny.") },
+                singleLine = true,
+            )
+            Spacer(Modifier.height(15.dp))
+            Button(
+                onClick = { onSave(currency, startDay.toIntOrNull()?.coerceIn(1, 28) ?: 1) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Zapisz ustawienia") }
+            Spacer(Modifier.height(22.dp))
+        }
+    }
+}
+
+@Composable
+private fun SheetHeader(title: String, subtitle: String, onDismiss: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, contentDescription = "Zamknij") }
+    }
+    Spacer(Modifier.height(16.dp))
+}
+
+@Composable
+private fun <T> ChoiceButton(
     label: String,
     value: String,
-    options: List<Pair<String, T>>,
+    options: List<T>,
+    modifier: Modifier = Modifier,
+    optionLabel: (T) -> String = { it.toString() },
     onSelect: (T) -> Unit,
 ) {
     var expanded by remember(label, value) { mutableStateOf(false) }
-    Box {
+    Box(modifier) {
         OutlinedButton(
             onClick = { expanded = true },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(13.dp),
-            contentPadding = PaddingValues(horizontal = 15.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp),
         ) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
                 Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Icon(Icons.Outlined.ArrowForward, contentDescription = "Wybierz", modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Tune, contentDescription = "Wybierz", modifier = Modifier.size(17.dp))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { (optionLabel, optionValue) ->
+            options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(optionLabel) },
-                    onClick = {
-                        expanded = false
-                        onSelect(optionValue)
-                    },
+                    text = { Text(optionLabel(option)) },
+                    onClick = { expanded = false; onSelect(option) },
                 )
             }
         }
     }
 }
 
-private fun showDatePicker(context: Context, current: Long?, onDateSelected: (Long) -> Unit) {
-    val calendar = Calendar.getInstance().apply {
-        timeInMillis = current ?: System.currentTimeMillis()
+@Composable
+private fun DateButton(label: String, timestamp: Long, context: Context, onDateChanged: (Long) -> Unit) {
+    OutlinedButton(onClick = { showDatePicker(context, timestamp, onDateChanged) }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(7.dp))
+        Text("$label: ${formatDate(timestamp)}")
     }
+}
+
+private fun showDatePicker(context: Context, current: Long, onDateSelected: (Long) -> Unit) {
+    val calendar = Calendar.getInstance().apply { timeInMillis = current }
     DatePickerDialog(
         context,
         { _, year, month, day ->
             val selected = Calendar.getInstance().apply {
-                timeInMillis = current ?: System.currentTimeMillis()
+                timeInMillis = current
                 set(Calendar.YEAR, year)
                 set(Calendar.MONTH, month)
                 set(Calendar.DAY_OF_MONTH, day)
             }
-            showTimePicker(context, selected.timeInMillis, onDateSelected)
+            onDateSelected(selected.timeInMillis)
         },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
@@ -1211,67 +1233,28 @@ private fun showDatePicker(context: Context, current: Long?, onDateSelected: (Lo
     ).show()
 }
 
-private fun showTimePicker(context: Context, current: Long, onTimeSelected: (Long) -> Unit) {
-    val calendar = Calendar.getInstance().apply { timeInMillis = current }
-    TimePickerDialog(
-        context,
-        { _, hour, minute ->
-            val selected = Calendar.getInstance().apply {
-                timeInMillis = current
-                set(Calendar.HOUR_OF_DAY, hour)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            onTimeSelected(selected.timeInMillis)
-        },
-        calendar.get(Calendar.HOUR_OF_DAY),
-        calendar.get(Calendar.MINUTE),
-        true,
-    ).show()
-}
-
-private fun reminderLabel(offset: Int?): String = when (offset) {
-    null -> "Bez przypomnienia"
-    0 -> "W chwili terminu"
-    15 -> "15 minut wcześniej"
-    60 -> "Godzinę wcześniej"
-    24 * 60 -> "Dzień wcześniej"
-    else -> "$offset minut wcześniej"
-}
-
-private fun formatDue(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val start = startOfToday()
-    val tomorrow = start + 24L * 60L * 60L * 1000L
-    return when {
-        timestamp < start -> "zaległe"
-        timestamp < tomorrow -> "dziś, ${SimpleDateFormat("HH:mm", Locale("pl", "PL")).format(Date(timestamp))}"
-        timestamp < tomorrow + 24L * 60L * 60L * 1000L -> "jutro"
-        else -> SimpleDateFormat("d MMM", Locale("pl", "PL")).format(Date(timestamp))
+@Composable
+private fun EmptyState(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String) {
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 35.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(24.dp)) {
+            Icon(icon, contentDescription = null, modifier = Modifier.padding(18.dp).size(34.dp), tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(17.dp))
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
-private fun formatDate(timestamp: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("pl", "PL")).format(Date(timestamp))
+private fun periodLabel(snapshot: BudgetSnapshot): String =
+    "${formatDate(snapshot.period.startAt)} – ${formatDate(snapshot.period.endAt)}"
 
-private fun formatDateTime(timestamp: Long): String = SimpleDateFormat("d MMM, HH:mm", Locale("pl", "PL")).format(Date(timestamp))
+private fun formatDate(timestamp: Long): String =
+    DateFormat.getDateInstance(DateFormat.MEDIUM, Locale("pl", "PL")).format(Date(timestamp))
 
-private fun startOfToday(): Long = Calendar.getInstance().apply {
-    set(Calendar.HOUR_OF_DAY, 0)
-    set(Calendar.MINUTE, 0)
-    set(Calendar.SECOND, 0)
-    set(Calendar.MILLISECOND, 0)
-}.timeInMillis
-
-private fun isToday(timestamp: Long): Boolean {
-    val today = Calendar.getInstance()
-    val date = Calendar.getInstance().apply { timeInMillis = timestamp }
-    return today.get(Calendar.YEAR) == date.get(Calendar.YEAR) &&
-        today.get(Calendar.DAY_OF_YEAR) == date.get(Calendar.DAY_OF_YEAR)
-}
-
-private fun polishTaskWord(count: Int): String = when {
-    count == 1 -> "zadanie"
-    count in 2..4 -> "zadania"
-    else -> "zadań"
-}
+private fun minorToInput(minor: Long): String =
+    BigDecimal(minor).movePointLeft(2).stripTrailingZeros().toPlainString()
