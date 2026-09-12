@@ -68,6 +68,13 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      - name: Expose unit-test failure summary
+        if: steps.unit_tests.outcome == 'failure'
+        shell: bash
+        run: |
+          summary=$(tail -80 unit-tests.log | tr '\n' ' ' | tr '\r' ' ' | sed 's/%/%25/g; s/|/%7C/g')
+          echo "::error file=unit-tests.log,line=1::${summary}"
+
       - name: Fail if unit tests failed
         if: steps.unit_tests.outcome == 'failure'
         run: exit 1
